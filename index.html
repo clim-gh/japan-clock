@@ -13,6 +13,8 @@
       --text: #f8fafc;
       --muted: #94a3b8;
       --accent: #f43f5e;
+      --accent-2: #2dd4bf;
+      --line: rgba(255, 255, 255, 0.08);
     }
 
     html, body { height: 100%; }
@@ -36,7 +38,7 @@
       padding: clamp(28px, 6vw, 56px) clamp(20px, 5vw, 48px);
       text-align: center;
       background: rgba(255, 255, 255, 0.04);
-      border: 1px solid rgba(255, 255, 255, 0.08);
+      border: 1px solid var(--line);
       border-radius: 24px;
       box-shadow: 0 20px 60px rgba(0, 0, 0, 0.35);
       backdrop-filter: blur(12px);
@@ -84,42 +86,115 @@
       font-size: clamp(1rem, 3.5vw, 1.4rem);
       color: var(--muted);
     }
+
+    /* Comparison zone (New Zealand) */
+    .compare {
+      margin-top: clamp(24px, 5vw, 40px);
+      padding-top: clamp(24px, 5vw, 40px);
+      border-top: 1px solid var(--line);
+    }
+
+    .compare .dot {
+      background: var(--accent-2);
+      box-shadow: 0 0 12px var(--accent-2);
+    }
+
+    .compare .time {
+      margin: clamp(10px, 2.5vw, 16px) 0 clamp(6px, 1.5vw, 10px);
+      font-size: clamp(2.2rem, 9vw, 4.5rem);
+    }
+
+    .compare .time .sec { color: var(--accent-2); }
+
+    .compare .date { font-size: clamp(0.95rem, 3vw, 1.15rem); }
+
+    .diff {
+      display: inline-block;
+      margin-top: clamp(14px, 3vw, 20px);
+      padding: 6px 14px;
+      border-radius: 999px;
+      border: 1px solid var(--line);
+      background: rgba(255, 255, 255, 0.05);
+      font-size: clamp(0.85rem, 2.6vw, 1rem);
+      color: var(--text);
+    }
   </style>
 </head>
 <body>
   <main class="card">
-    <div class="label"><span class="dot"></span>Tokyo, Japan (JST)</div>
-    <div class="time" aria-live="off">
-      <span id="h">--</span><span class="sep">:</span><span id="m">--</span><span class="sep">:</span><span id="s" class="sec">--</span>
-    </div>
-    <div class="date" id="date">&nbsp;</div>
+    <section>
+      <div class="label"><span class="dot"></span>Tokyo, Japan (JST)</div>
+      <div class="time" aria-live="off">
+        <span id="tokyo-h">--</span><span class="sep">:</span><span id="tokyo-m">--</span><span class="sep">:</span><span id="tokyo-s" class="sec">--</span>
+      </div>
+      <div class="date" id="tokyo-date">&nbsp;</div>
+    </section>
+
+    <section class="compare">
+      <div class="label"><span class="dot"></span>New Zealand (<span id="nz-abbr">NZT</span>)</div>
+      <div class="time" aria-live="off">
+        <span id="nz-h">--</span><span class="sep">:</span><span id="nz-m">--</span><span class="sep">:</span><span id="nz-s" class="sec">--</span>
+      </div>
+      <div class="date" id="nz-date">&nbsp;</div>
+      <div class="diff" id="diff">&nbsp;</div>
+    </section>
   </main>
 
   <script>
-    const TZ = 'Asia/Tokyo';
+    function makeZone(tz, prefix) {
+      return {
+        partsFmt: new Intl.DateTimeFormat('en-GB', {
+          timeZone: tz, year: 'numeric', month: 'numeric', day: 'numeric',
+          hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23'
+        }),
+        dateFmt: new Intl.DateTimeFormat('en-GB', {
+          timeZone: tz, weekday: 'long', day: 'numeric', month: 'long', year: 'numeric'
+        }),
+        hEl: document.getElementById(prefix + '-h'),
+        mEl: document.getElementById(prefix + '-m'),
+        sEl: document.getElementById(prefix + '-s'),
+        dateEl: document.getElementById(prefix + '-date')
+      };
+    }
 
-    const timeFmt = new Intl.DateTimeFormat('en-GB', {
-      timeZone: TZ, hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23'
-    });
-    const dateFmt = new Intl.DateTimeFormat('en-GB', {
-      timeZone: TZ, weekday: 'long', day: 'numeric', month: 'long', year: 'numeric'
-    });
+    const tokyo = makeZone('Asia/Tokyo', 'tokyo');
+    const nz = makeZone('Pacific/Auckland', 'nz');
+    const nzAbbrEl = document.getElementById('nz-abbr');
+    const diffEl = document.getElementById('diff');
 
-    const hEl = document.getElementById('h');
-    const mEl = document.getElementById('m');
-    const sEl = document.getElementById('s');
-    const dateEl = document.getElementById('date');
+    // Render a zone's clock and return its UTC offset in minutes
+    function render(zone, now) {
+      const p = Object.fromEntries(zone.partsFmt.formatToParts(now).map(x => [x.type, x.value]));
+      zone.hEl.textContent = p.hour;
+      zone.mEl.textContent = p.minute;
+      zone.sEl.textContent = p.second;
+      zone.dateEl.textContent = zone.dateFmt.format(now);
+
+      const wallClockAsUtc = Date.UTC(+p.year, +p.month - 1, +p.day, +p.hour, +p.minute, +p.second);
+      return Math.round((wallClockAsUtc - Math.floor(now / 1000) * 1000) / 60000);
+    }
+
+    function describeDiff(minutes) {
+      if (minutes === 0) return 'New Zealand is on the same time as Tokyo';
+      const abs = Math.abs(minutes);
+      const h = Math.floor(abs / 60);
+      const m = abs % 60;
+      let amount = h ? h + (h === 1 ? ' hour' : ' hours') : '';
+      if (m) amount += (amount ? ' ' : '') + m + ' min';
+      return 'New Zealand is ' + amount + (minutes > 0 ? ' ahead of' : ' behind') + ' Tokyo';
+    }
 
     function tick() {
       const now = new Date();
-      const parts = Object.fromEntries(timeFmt.formatToParts(now).map(p => [p.type, p.value]));
-      hEl.textContent = parts.hour;
-      mEl.textContent = parts.minute;
-      sEl.textContent = parts.second;
-      dateEl.textContent = dateFmt.format(now);
+      const tokyoOffset = render(tokyo, now);
+      const nzOffset = render(nz, now);
+
+      // NZ observes daylight saving: UTC+13 (NZDT) in summer, UTC+12 (NZST) in winter
+      nzAbbrEl.textContent = nzOffset === 780 ? 'NZDT' : 'NZST';
+      diffEl.textContent = describeDiff(nzOffset - tokyoOffset);
 
       // Schedule the next update right after the next whole second
-      setTimeout(tick, 1000 - (now.getMilliseconds()) + 10);
+      setTimeout(tick, 1000 - now.getMilliseconds() + 10);
     }
 
     tick();
