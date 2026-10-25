@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Japan Time</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg-1: #0f172a;
+      --bg-2: #1e1b4b;
+      --text: #f8fafc;
+      --muted: #94a3b8;
+      --accent: #f43f5e;
+    }
+
+    html, body { height: 100%; }
+
+    body {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      min-height: 100dvh;
+      padding: 16px;
+      background: radial-gradient(circle at 30% 20%, var(--bg-2), var(--bg-1) 70%);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .card {
+      width: 100%;
+      max-width: 720px;
+      padding: clamp(28px, 6vw, 56px) clamp(20px, 5vw, 48px);
+      text-align: center;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 24px;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.35);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+    }
+
+    .label {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      font-size: clamp(0.85rem, 2.5vw, 1rem);
+      font-weight: 600;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    .dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: var(--accent);
+      box-shadow: 0 0 12px var(--accent);
+    }
+
+    .time {
+      margin: clamp(16px, 4vw, 28px) 0 clamp(8px, 2vw, 14px);
+      font-size: clamp(3.2rem, 15vw, 8rem);
+      font-weight: 700;
+      line-height: 1;
+      letter-spacing: -0.02em;
+      font-variant-numeric: tabular-nums;
+      white-space: nowrap;
+    }
+
+    .time .sep {
+      color: var(--muted);
+      opacity: 0.6;
+      margin: 0 0.04em;
+    }
+
+    .time .sec { color: var(--accent); }
+
+    .date {
+      font-size: clamp(1rem, 3.5vw, 1.4rem);
+      color: var(--muted);
+    }
+  </style>
+</head>
+<body>
+  <main class="card">
+    <div class="label"><span class="dot"></span>Tokyo, Japan (JST)</div>
+    <div class="time" aria-live="off">
+      <span id="h">--</span><span class="sep">:</span><span id="m">--</span><span class="sep">:</span><span id="s" class="sec">--</span>
+    </div>
+    <div class="date" id="date">&nbsp;</div>
+  </main>
+
+  <script>
+    const TZ = 'Asia/Tokyo';
+
+    const timeFmt = new Intl.DateTimeFormat('en-GB', {
+      timeZone: TZ, hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23'
+    });
+    const dateFmt = new Intl.DateTimeFormat('en-GB', {
+      timeZone: TZ, weekday: 'long', day: 'numeric', month: 'long', year: 'numeric'
+    });
+
+    const hEl = document.getElementById('h');
+    const mEl = document.getElementById('m');
+    const sEl = document.getElementById('s');
+    const dateEl = document.getElementById('date');
+
+    function tick() {
+      const now = new Date();
+      const parts = Object.fromEntries(timeFmt.formatToParts(now).map(p => [p.type, p.value]));
+      hEl.textContent = parts.hour;
+      mEl.textContent = parts.minute;
+      sEl.textContent = parts.second;
+      dateEl.textContent = dateFmt.format(now);
+
+      // Schedule the next update right after the next whole second
+      setTimeout(tick, 1000 - (now.getMilliseconds()) + 10);
+    }
+
+    tick();
+  </script>
+</body>
+</html>
